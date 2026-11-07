@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar proyecto
+        id: p
+        run: |
+          zip=$(find . -iname 'NovaEmulator*.zip' -not -path './.git/*' | head -n1)
+          if [ -n "$zip" ]; then unzip -oq "$zip" -d _nova; fi
+          settings=$(find . -name settings.gradle.kts -not -path './.git/*' | head -n1)
+          if [ -z "$settings" ]; then
+            echo "No se encontro settings.gradle.kts. Contenido del repo:"
+            find . -not -path './.git/*' | head -60
+            exit 1
+          fi
+          dir=$(dirname "$settings")
+          echo "Proyecto en: $dir"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Compilar APK debug
+        working-directory: ${{ steps.p.outputs.dir }}
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NovaEmulator-debug-apk
+          path: ${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/*.apk
+          

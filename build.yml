@@ -1,0 +1,36 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar proyecto
+        id: p
+        run: |
+          if [ -f NovaEmulator.zip ]; then unzip -oq NovaEmulator.zip; fi
+          if [ -f settings.gradle.kts ]; then echo "dir=." >> "$GITHUB_OUTPUT"; else echo "dir=NovaEmulator" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Compilar APK debug
+        working-directory: ${{ steps.p.outputs.dir }}
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NovaEmulator-debug-apk
+          path: ${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/*.apk
